@@ -7,8 +7,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-EXCEL_IN = "input.xlsx"
-EXCEL_OUT = "output_with_citations2.xlsx"
+EXCEL_IN = "1993_dataset.xlsx"
+EXCEL_OUT = "output_with_citations.xlsx"
 BASE_URL = "https://scholar.google.com"
 
 wait_time = 15
@@ -26,7 +26,7 @@ wait = WebDriverWait(driver, wait_time)
 def safe_sleep(a=1.0, b=3.0):
     time.sleep(random.uniform(a, b))
 
-all_years = set()
+all_years = set(range(1993, 2026)) #1993-2025
 row_year_dicts = []
 
 for idx, row in df.iterrows():
@@ -45,6 +45,7 @@ for idx, row in df.iterrows():
         search_box.clear()
         search_box.send_keys(query)
         search_box.send_keys(Keys.RETURN)
+        safe_sleep(1, 2)
 
         # 4. Click the "Cited by" link for the first result
         cited_link = wait.until(
@@ -58,6 +59,7 @@ for idx, row in df.iterrows():
         cited_count = int(match.group()) if match else 0
 
         cited_link.click()
+        safe_sleep(1, 2)
 
         # 5. Open sidebar with year‑wise citations
         citations_btn = wait.until(
@@ -81,26 +83,30 @@ for idx, row in df.iterrows():
             year = int(bar.get_attribute("data-year"))
             count = int(bar.get_attribute("data-count"))
             year_counts[year] = count
-            all_years.add(year)
+            # all_years.add(year)
             # print(f"{year} : {count}")
 
         row_year_dicts.append(year_counts)
 
         # basic rate‑limit friendliness
-        print(f"Done {author}")
+        print(f"{idx} Done {author}")
         safe_sleep(2, 5)
+        wait_time = 15
+
+        if idx % 10 == 0:
+            safe_sleep(10, 15)
 
     except Exception as e:
         print(f"Row {idx} failed: {e}")
         row_year_dicts.append({})      # keep alignment
-        safe_sleep(5, 10)
+        wait_time *= 2
+        safe_sleep(wait_time, wait_time + 5)
 
 driver.quit()
 
 # 7. Merge back into DataFrame as columns Year_YYYY
 for year in sorted(all_years):
-    col = f"{year}"
-    df[col] = [
+    df[year] = [
         row_dict.get(year, 0) for row_dict in row_year_dicts
     ]
 
